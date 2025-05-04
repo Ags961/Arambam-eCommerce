@@ -1,36 +1,13 @@
-import express from 'express';
-import {
-  listProducts,
-  addProduct,
-  removeProduct,
-  singleProduct,
-  editProduct,
-} from '../controllers/productController.js';
-
+import express from 'express'
+import { listProducts, addProduct, removeProduct, singleProduct } from '../controllers/productController.js'
 import upload from '../middleware/multer.js';
 import adminAuth from '../middleware/adminAuth.js';
 
-const router = express.Router();
+const productRouter = express.Router();
 
-// Image upload config used in both add/edit
-const uploadImages = upload.fields([
-  { name: 'image1' },
-  { name: 'image2' },
-  { name: 'image3' },
-  { name: 'image4' },
-]);
+productRouter.post('/add',adminAuth,upload.fields([{name:'image1',maxCount:1},{name:'image2',maxCount:1},{name:'image3',maxCount:1},{name:'image4',maxCount:1}]),addProduct);
+productRouter.post('/remove',adminAuth,removeProduct);
+productRouter.post('/single',singleProduct);
+productRouter.get('/list',listProducts)
 
-/**
- * Admin-only Product Management Routes
- */
-router.post('/add', adminAuth, uploadImages, addProduct);
-router.post('/edit', adminAuth, uploadImages, editProduct);
-router.post('/remove', adminAuth, removeProduct);
-
-/**
- * Public Product Access Routes
- */
-router.post('/single', singleProduct);
-router.get('/list', listProducts);
-
-export default router;
+export default productRouter
