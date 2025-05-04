@@ -1,174 +1,229 @@
 import orderModel from "../models/orderModel.js";
 import userModel from "../models/userModel.js";
-import productModel from "../models/productModel.js"; 
-import createStripeSession from "../utils/stripeSession.js";
+import Stripe from 'stripe'
 
-// ✅ Place Order - COD
-const placeOrder = async (req, res) => {
-  console.log("✅ [placeOrder] - Entry");
+// global variables
+const currency = 'inr'
+const deliveryCharge = 10
 
-  try {
-    const { userId, items, amount, address } = req.body;
+// gateway initialize
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY)
 
-    if (!userId || !items || !amount || !address) {
-      return res.status(400).json({ success: false, message: "Missing required fields" });
+
+// Placing orders using COD Method
+const placeOrder = async (req,res) => {
+    
+    try {
+        
+        const { userId, items, amount, address} = req.body;
+
+        const orderData = {
+            userId,
+            items,
+            address,
+            amount,
+            paymentMethod:"COD",
+            payment:false,
+            date: Date.now()
+        }
+
+        const newOrder = new orderModel(orderData)
+        await newOrder.save()
+
+        await userModel.findByIdAndUpdate(userId,{cartData:{}})
+
+        res.json({success:true,message:"Order Placed"})
+
+
+    } catch (error) {
+        console.log(error)
+        res.json({success:false,message:error.message})
     }
 
-    const enrichedItems = await Promise.all(
-      items.map(async (item) => {
-        const product = await productModel.findById(item._id);
-        return {
-          name: product.name,
-          price: product.price,
-          quantity: item.quantity,
-          size: item.size,
-          image: product.image,
-        };
-      })
-    );
+}
 
-    const newOrder = new orderModel({
-      userId,
-      items: enrichedItems,
-      address,
-      amount,
-      paymentMethod: "COD",
-      payment: false,
-      date: Date.now(),
-    });
+// Placing orders using Stripe Method
+const placeOrderStripe = async (req,res) => {
+    try {
+        
+        const { userId, items, amount, address} = req.body
+        const { origin } = req.headers;
 
-    await newOrder.save();
-    await userModel.findByIdAndUpdate(userId, { cartData: {} });
+        const orderData = {
+            userId,
+            items,
+            address,
+            amount,
+            paymentMethod:"Stripe",
+            payment:false,
+            date: Date.now()
+        }
 
-    console.log("📦 COD Order Created:", newOrder._id);
-    res.status(200).json({ success: true, message: "Order Placed" });
-  } catch (error) {
-    console.error("❌ [placeOrder] Error:", error.message);
-    res.status(500).json({ success: false, message: "Internal Server Error" });
-  }
-};
+        const newOrder = new orderModel(orderData)
+        await newOrder.save()
 
-// ✅ Place Order - Stripe
-const placeOrderStripe = async (req, res) => {
-  console.log("✅ [placeOrderStripe] - Entry");
+        const line_items = items.map((item) => ({
+            price_data: {
+                currency:currency,
+                product_data: {
+                    name:item.name
+                },
+                unit_amount: item.price * 100
+            },
+            quantity: item.quantity
+        }))
 
-  try {
-    const { userId, items, amount, address } = req.body;
-    const { origin } = req.headers;
+        line_items.push({
+            price_data: {
+                currency:currency,
+                product_data: {
+                    name:'Delivery Charges'
+                },
+                unit_amount: deliveryCharge * 100
+            },
+            quantity: 1
+        })
 
-    if (!userId || !items || !amount || !address || !origin) {
-      return res.status(400).json({ success: false, message: "Missing required fields" });
+        const session = await stripe.checkout.sessions.create({
+            success_url: `${origin}/verify?success=true&orderId=${newOrder._id}`,
+            cancel_url:  `${origin}/verify?success=false&orderId=${newOrder._id}`,
+            line_items,
+            mode: 'payment',
+        })
+
+        res.json({success:true,session_url:session.url});
+
+    } catch (error) {
+        console.log(error)
+        res.json({success:false,message:error.message})
+    }
+}
+
+// Verify Stripe 
+const verifyStripe = async (req,res) => {
+
+    const { orderId, success, userId } = req.body
+
+    try {
+        if (success === "true") {
+            await orderModel.findByIdAndUpdate(orderId, {payment:true});
+            await userModel.findByIdAndUpdate(userId, {cartData: {}})
+            res.json({success: true});
+        } else {
+            await orderModel.findByIdAndDelete(orderId)
+            res.json({success:false})
+        }
+        
+    } catch (error) {
+        console.log(error)
+        res.json({success:false,message:error.message})
     }
 
-    const enrichedItems = await Promise.all(
-      items.map(async (item) => {
-        const product = await productModel.findById(item._id);
-        return {
-          name: product.name,
-          price: product.price,
-          quantity: item.quantity,
-          size: item.size,
-          image: product.image,
-        };
-      })
-    );
+}
 
-    const newOrder = await new orderModel({
-      userId,
-      items: enrichedItems,
-      address,
-      amount,
-      paymentMethod: "Stripe",
-      payment: false,
-      date: Date.now(),
-    }).save();
+// Placing orders using Razorpay Method
+const placeOrderRazorpay = async (req,res) => {
+    try {
+        
+        const { userId, items, amount, address} = req.body
 
-    const sessionUrl = await createStripeSession(enrichedItems, origin, newOrder._id);
-    console.log("🧾 Stripe Session Created:", newOrder._id);
+        const orderData = {
+            userId,
+            items,
+            address,
+            amount,
+            paymentMethod:"Razorpay",
+            payment:false,
+            date: Date.now()
+        }
 
-    res.status(200).json({ success: true, session_url: sessionUrl });
-  } catch (error) {
-    console.error("❌ [placeOrderStripe] Error:", error.message);
-    res.status(500).json({ success: false, message: "Stripe Payment Failed" });
-  }
-};
+        const newOrder = new orderModel(orderData)
+        await newOrder.save()
 
-// ✅ Verify Stripe
-const verifyStripe = async (req, res) => {
-  console.log("✅ [verifyStripe] - Entry");
+        const options = {
+            amount: amount * 100,
+            currency: currency.toUpperCase(),
+            receipt : newOrder._id.toString()
+        }
 
-  try {
-    const { orderId, success, userId } = req.body;
+        await razorpayInstance.orders.create(options, (error,order)=>{
+            if (error) {
+                console.log(error)
+                return res.json({success:false, message: error})
+            }
+            res.json({success:true,order})
+        })
 
-    if (!orderId || success == null || !userId) {
-      return res.status(400).json({ success: false, message: "Missing required fields" });
+    } catch (error) {
+        console.log(error)
+        res.json({success:false,message:error.message})
+    }
+}
+
+const verifyRazorpay = async (req,res) => {
+    try {
+        
+        const { userId, razorpay_order_id  } = req.body
+
+        const orderInfo = await razorpayInstance.orders.fetch(razorpay_order_id)
+        if (orderInfo.status === 'paid') {
+            await orderModel.findByIdAndUpdate(orderInfo.receipt,{payment:true});
+            await userModel.findByIdAndUpdate(userId,{cartData:{}})
+            res.json({ success: true, message: "Payment Successful" })
+        } else {
+             res.json({ success: false, message: 'Payment Failed' });
+        }
+
+    } catch (error) {
+        console.log(error)
+        res.json({success:false,message:error.message})
+    }
+}
+
+
+// All Orders data for Admin Panel
+const allOrders = async (req,res) => {
+
+    try {
+        
+        const orders = await orderModel.find({})
+        res.json({success:true,orders})
+
+    } catch (error) {
+        console.log(error)
+        res.json({success:false,message:error.message})
     }
 
-    if (success === "true") {
-      await orderModel.findByIdAndUpdate(orderId, { payment: true });
-      await userModel.findByIdAndUpdate(userId, { cartData: {} });
+}
 
-      console.log("✅ Stripe Payment Confirmed - Order Updated:", orderId);
-      res.status(200).json({ success: true });
-    } else {
-      await orderModel.findByIdAndDelete(orderId);
-      console.log("❌ Stripe Payment Failed - Order Deleted:", orderId);
-      res.status(200).json({ success: false });
+// User Order Data For Forntend
+const userOrders = async (req,res) => {
+    try {
+        
+        const { userId } = req.body
+
+        const orders = await orderModel.find({ userId })
+        res.json({success:true,orders})
+
+    } catch (error) {
+        console.log(error)
+        res.json({success:false,message:error.message})
     }
-  } catch (error) {
-    console.error("❌ [verifyStripe] Error:", error.message);
-    res.status(500).json({ success: false, message: "Internal Server Error" });
-  }
-};
+}
 
-// ✅ Admin - All Orders
-const allOrders = async (req, res) => {
-  try {
-    const orders = await orderModel.find({});
-    res.status(200).json({ success: true, orders });
-  } catch (error) {
-    console.error("❌ [allOrders] Error:", error.message);
-    res.status(500).json({ success: false, message: "Internal Server Error" });
-  }
-};
+// update order status from Admin Panel
+const updateStatus = async (req,res) => {
+    try {
+        
+        const { orderId, status } = req.body
 
-// ✅ User - Orders
-const userOrders = async (req, res) => {
-  try {
-    const { userId } = req.body;
-    if (!userId) {
-      return res.status(400).json({ success: false, message: "Missing userId" });
+        await orderModel.findByIdAndUpdate(orderId, { status })
+        res.json({success:true,message:'Status Updated'})
+
+    } catch (error) {
+        console.log(error)
+        res.json({success:false,message:error.message})
     }
+}
 
-    const orders = await orderModel.find({ userId });
-    res.status(200).json({ success: true, orders });
-  } catch (error) {
-    console.error("❌ [userOrders] Error:", error.message);
-    res.status(500).json({ success: false, message: "Internal Server Error" });
-  }
-};
-
-// ✅ Admin - Update Order Status
-const updateStatus = async (req, res) => {
-  try {
-    const { orderId, status } = req.body;
-    if (!orderId || !status) {
-      return res.status(400).json({ success: false, message: "Missing fields" });
-    }
-
-    await orderModel.findByIdAndUpdate(orderId, { status });
-    res.status(200).json({ success: true, message: "Order status updated" });
-  } catch (error) {
-    console.error("❌ [updateStatus] Error:", error.message);
-    res.status(500).json({ success: false, message: "Internal Server Error" });
-  }
-};
-
-export {
-  verifyStripe,
-  placeOrder,
-  placeOrderStripe,
-  allOrders,
-  userOrders,
-  updateStatus,
-};
+export {verifyRazorpay, verifyStripe ,placeOrder, placeOrderStripe, placeOrderRazorpay, allOrders, userOrders, updateStatus}

@@ -1,32 +1,24 @@
-import { decodeToken } from '../utils/verifyToken.js';
+import jwt from 'jsonwebtoken'
 
-/**
- * Middleware: Authenticates a regular user using JWT.
- */
-const authenticateUser = (req, res, next) => {
-  try {
-    const token = req.headers.token;
+const authUser = async (req, res, next) => {
+
+    const { token } = req.headers;
 
     if (!token) {
-      return res.status(401).json({
-        success: false,
-        message: 'Authentication required. Please log in.',
-      });
+        return res.json({ success: false, message: 'Not Authorized Login Again' })
     }
 
-    const decoded = decodeToken(token);
+    try {
 
-    // Attach userId to req.body for downstream use
-    req.body.userId = decoded.id;
+        const token_decode = jwt.verify(token, process.env.JWT_SECRET)
+        req.body.userId = token_decode.id
+        next()
 
-    next(); // ✅ User token is valid
-  } catch (err) {
-    console.error('authUser Error:', err.message);
-    return res.status(401).json({
-      success: false,
-      message: 'Invalid or expired token. Please re-authenticate.',
-    });
-  }
-};
+    } catch (error) {
+        console.log(error)
+        res.json({ success: false, message: error.message })
+    }
 
-export default authenticateUser;
+}
+
+export default authUser
