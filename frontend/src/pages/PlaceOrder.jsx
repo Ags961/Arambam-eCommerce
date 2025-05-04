@@ -64,8 +64,10 @@ const PlaceOrder = () => {
         amount: getCartAmount() + delivery_fee
       };
 
+      const config = { headers: { token } };
+
       if (method === 'cod') {
-        const res = await axios.post(`${backendUrl}/api/order/place`, orderData, { headers: { token } });
+        const res = await axios.post(`${backendUrl}/api/order/place`, orderData, config);
         if (res.data.success) {
           toast.success('Order placed successfully!');
           setCartItems({});
@@ -76,7 +78,7 @@ const PlaceOrder = () => {
       }
 
       if (method === 'stripe') {
-        const res = await axios.post(`${backendUrl}/api/order/stripe`, orderData, { headers: { token } });
+        const res = await axios.post(`${backendUrl}/api/order/stripe`, orderData, config);
         if (res.data.success && res.data.session_url) {
           window.location.replace(res.data.session_url);
         } else {
@@ -85,7 +87,12 @@ const PlaceOrder = () => {
       }
 
     } catch (err) {
-      toast.error(err.message);
+      if (err.response?.status === 401) {
+        toast.warn("⚠️ Please log in before completing your purchase.");
+        navigate('/login'); // Optional: redirect to login
+      } else {
+        toast.error(err.response?.data?.message || err.message || "An error occurred.");
+      }
       console.error(err);
     } finally {
       setSubmitting(false);
@@ -128,9 +135,8 @@ const PlaceOrder = () => {
             {/* Stripe Option */}
             <div
               onClick={() => setMethod('stripe')}
-              className={`cursor-pointer flex items-center gap-3 border rounded-lg px-4 py-3 w-full lg:w-[260px] transition-all duration-300 ${
-                method === 'stripe' ? 'border-teal-500 bg-teal-50' : 'border-gray-300'
-              }`}
+              className={`cursor-pointer flex items-center gap-3 border rounded-lg px-4 py-3 w-full lg:w-[260px] transition-all duration-300 ${method === 'stripe' ? 'border-teal-500 bg-teal-50' : 'border-gray-300'
+                }`}
             >
               <div className={`w-4 h-4 border-2 rounded-full ${method === 'stripe' ? 'bg-teal-400 border-teal-500' : ''}`}></div>
               <img src={assets.stripe_logo} alt="Stripe" className="h-5" />
@@ -140,9 +146,8 @@ const PlaceOrder = () => {
             {/* Cash on Delivery Option */}
             <div
               onClick={() => setMethod('cod')}
-              className={`cursor-pointer flex items-center gap-3 border rounded-lg px-4 py-3 w-full lg:w-[260px] transition-all duration-300 ${
-                method === 'cod' ? 'border-teal-500 bg-teal-50' : 'border-gray-300'
-              }`}
+              className={`cursor-pointer flex items-center gap-3 border rounded-lg px-4 py-3 w-full lg:w-[260px] transition-all duration-300 ${method === 'cod' ? 'border-teal-500 bg-teal-50' : 'border-gray-300'
+                }`}
             >
               <div className={`w-4 h-4 border-2 rounded-full ${method === 'cod' ? 'bg-teal-400 border-teal-500' : ''}`}></div>
               <p className="text-sm font-medium ml-2">Cash on Delivery</p>
