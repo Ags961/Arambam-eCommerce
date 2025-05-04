@@ -1,0 +1,67 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Global Styles */
+* {
+  font-family: 'Inter', sans-serif;
+  color: #000000;
+}
+
+body {
+  @apply bg-gradient-to-br from-green-400 via-teal-400 to-blue-500;
+  min-height: 100vh;
+  background-repeat: no-repeat;
+  background-attachment: fixed;
+  color: #ffffff; /* set white color only for body text by default */
+}
+
+/* Heading font */
+.heading-font {
+  font-family: 'Inter', sans-serif;
+  font-weight: 700;
+}
+
+/* Active Link Styling */
+a.active hr {
+  display: block;
+}
+
+/* Hide Scrollbar */
+::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+}
+
+/* Mobile Styles */
+@media (max-width: 640px) {
+  a.active {
+    background-color: #1e8f88; /* teal green */
+    color: #ffffff;
+    border-radius: 6px;
+    padding: 0.5rem;
+  }
+}
+
+/* Additional Hover Effects for Buttons and Links */
+button:hover, a:hover {
+  color: #1e8f88; /* Hover links to teal green */
+}
+
+/* Divider Line Style */
+hr {
+  background-color: #1e8f88; /* Make HR lines teal green */
+}
+
+/* Selection (highlight) color */
+::selection {
+  background-color: #cde7fa;
+  color: #000000; /* black text when selecting */
+}
+
+::-moz-selection {
+  background-color: #cde7fa;
+  color: #000000;
+}

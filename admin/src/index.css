@@ -1,0 +1,57 @@
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@100..900&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Global Styles */
+* {
+  font-family: 'Outfit', sans-serif;
+}
+
+/* Inputs, Selects, Textareas */
+select, input, textarea {
+  border: 1px solid #c2c2c2;
+  outline: none;
+  border-radius: 6px;
+  background-color: #fff;
+  padding: 0.5rem;
+  transition: all 0.3s ease;
+}
+
+/* On focus */
+select:focus, input:focus, textarea:focus {
+  border-color: #38bdf8; /* Sky blue */
+  box-shadow: 0 0 8px rgba(56, 189, 248, 0.4);
+}
+
+/* Active Element */
+.active {
+  background-color: #e0f7fa; /* Very light teal */
+  border-color: #38bdf8;
+  color: #0ea5e9; /* Blue */
+  font-weight: 600;
+  border-radius: 6px;
+}
+
+/* Smooth Hover for Buttons and Links */
+button:hover, a:hover {
+  color: #0ea5e9;
+}
+
+/* Website Background - Blue Green Animated Gradient */
+body {
+  @apply min-h-screen;
+  background: linear-gradient(135deg, #a0e9e5, #38bdf8, #34d399);
+  background-size: 400% 400%;
+  animation: gradientMove 18s ease infinite;
+  background-attachment: fixed;
+  background-repeat: no-repeat;
+}
+
+/* Animation for Gradient Movement */
+@keyframes gradientMove {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
