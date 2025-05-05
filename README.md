@@ -33,9 +33,20 @@ Arambam eCommerce/
 │   ├── tailwind.config.js  # Tailwind configuration
 │   └── vite.config.js      # Vite config
 
+cd backend
+npm install
+npm run server
 
+THEN
 
 cd Arambam\ eCommerce/frontend
 npm install
 
 npm run dev
+
+AND
+
+cd admin
+npm install
+npm run dev
+
