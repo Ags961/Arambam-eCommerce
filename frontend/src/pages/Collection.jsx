@@ -3,10 +3,11 @@ import { ShopContext } from '../context/ShopContext';
 import { assets } from '../assets/assets';
 import Title from '../components/Title';
 import ProductItem from '../components/ProductItem';
+import { useLocation } from 'react-router-dom'; // Needed to read URL params
 
-// ✅ Collection Page - Displays products with search, filters, and sorting
 const Collection = () => {
   const { products, search, showSearch } = useContext(ShopContext);
+  const location = useLocation(); // For reading URL query params
 
   const [showFilter, setShowFilter] = useState(false);
   const [filterProducts, setFilterProducts] = useState([]);
@@ -16,7 +17,15 @@ const Collection = () => {
   const [priceRange, setPriceRange] = useState(1000);
   const [sortType, setSortType] = useState('relevant');
 
-  // ✅ Handle toggle for category filters
+  // Read URL param on mount to auto-select subcategory
+  useEffect(() => {
+    const searchParams = new URLSearchParams(location.search);
+    const subParam = searchParams.get('sub');
+    if (subParam) {
+      setSubCategory([subParam.toLowerCase()]);
+    }
+  }, [location.search]);
+
   const toggleCategory = (e) => {
     const value = e.target.value;
     setCategory((prev) =>
@@ -24,15 +33,13 @@ const Collection = () => {
     );
   };
 
-  // ✅ Handle toggle for subcategory filters
   const toggleSubCategory = (e) => {
-    const value = e.target.value;
+    const value = e.target.value.toLowerCase();
     setSubCategory((prev) =>
       prev.includes(value) ? prev.filter((item) => item !== value) : [...prev, value]
     );
   };
 
-  // ✅ Handle toggle for size filters
   const toggleSize = (e) => {
     const value = e.target.value;
     setSizeFilter((prev) =>
@@ -40,7 +47,6 @@ const Collection = () => {
     );
   };
 
-  // ✅ Clear all filters
   const clearFilters = () => {
     setCategory([]);
     setSubCategory([]);
@@ -49,8 +55,9 @@ const Collection = () => {
     setSortType('relevant');
   };
 
-  // ✅ Apply filters based on current selections
   const applyFilter = () => {
+    if (!products || products.length === 0) return;
+
     let productsCopy = [...products];
 
     if (showSearch && search) {
@@ -64,7 +71,9 @@ const Collection = () => {
     }
 
     if (subCategory.length > 0) {
-      productsCopy = productsCopy.filter((item) => subCategory.includes(item.subCategory));
+      productsCopy = productsCopy.filter((item) =>
+        subCategory.includes((item.subCategory || '').toLowerCase())
+      );
     }
 
     if (sizeFilter.length > 0) {
@@ -78,7 +87,6 @@ const Collection = () => {
     setFilterProducts(productsCopy);
   };
 
-  // ✅ Sort the filtered products
   const sortProduct = () => {
     let sorted = [...filterProducts];
     switch (sortType) {
@@ -95,22 +103,18 @@ const Collection = () => {
     setFilterProducts(sorted);
   };
 
-  // ✅ Apply filters when filters/search/products change
   useEffect(() => {
     applyFilter();
   }, [category, subCategory, sizeFilter, priceRange, search, showSearch, products]);
 
-  // ✅ Sort when sort option changes
   useEffect(() => {
     sortProduct();
   }, [sortType]);
 
   return (
     <div className="flex flex-col sm:flex-row gap-4 sm:gap-10 pt-10 px-4 border-t">
-
-      {/* ✅ Filters Panel */}
+      {/* Filters Panel */}
       <div className="min-w-60">
-        {/* Toggle Button on Mobile */}
         <p
           onClick={() => setShowFilter(!showFilter)}
           className="my-2 text-xl flex items-center cursor-pointer gap-2"
@@ -123,7 +127,6 @@ const Collection = () => {
           />
         </p>
 
-        {/* ✅ Filter Options */}
         <div className={`${showFilter ? '' : 'hidden'} sm:block`}>
           {/* Category */}
           <div className="border border-gray-300 pl-5 py-3 mt-6 rounded-lg">
@@ -142,10 +145,15 @@ const Collection = () => {
           <div className="border border-gray-300 pl-5 py-3 my-5 rounded-lg">
             <p className="mb-3 text-sm font-medium">TYPE</p>
             <div className="flex flex-col gap-2 text-sm font-light text-gray-700">
-              {['Hoodies', 'Chinos', 'Joggers', 'Shirts', 'Shorts'].map((sub, i) => (
+              {['hoodies', 'chinos', 'joggers', 'shirts', 'shorts'].map((sub, i) => (
                 <label key={i} className="flex gap-2">
-                  <input type="checkbox" value={sub} checked={subCategory.includes(sub)} onChange={toggleSubCategory} />
-                  {sub}
+                  <input
+                    type="checkbox"
+                    value={sub}
+                    checked={subCategory.includes(sub)}
+                    onChange={toggleSubCategory}
+                  />
+                  {sub.charAt(0).toUpperCase() + sub.slice(1)}
                 </label>
               ))}
             </div>
@@ -164,7 +172,7 @@ const Collection = () => {
             </div>
           </div>
 
-          {/* Price Slider */}
+          {/* Price Range */}
           <div className="border border-gray-300 pl-5 py-3 my-5 rounded-lg">
             <p className="mb-3 text-sm font-medium">PRICE RANGE</p>
             <input
@@ -177,7 +185,6 @@ const Collection = () => {
             <p className="text-sm text-gray-700">Up to £{priceRange}</p>
           </div>
 
-          {/* ✅ Clear All Filters */}
           <button
             onClick={clearFilters}
             className="w-full mt-3 py-2 text-sm text-teal-600 border border-teal-400 rounded-full hover:bg-teal-50 transition"
@@ -187,9 +194,8 @@ const Collection = () => {
         </div>
       </div>
 
-      {/* ✅ Products Section */}
+      {/* Product Section */}
       <div className="flex-1">
-        {/* Title & Sort */}
         <div className="flex flex-wrap justify-between items-center mb-6 gap-3">
           <Title text1={'ALL'} text2={'COLLECTIONS'} />
           <div className="flex gap-3 items-center">
@@ -205,7 +211,6 @@ const Collection = () => {
           </div>
         </div>
 
-        {/* Product Grid */}
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5">
           {filterProducts.length > 0 ? (
             filterProducts.map((item) => (
